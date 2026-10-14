@@ -6099,6 +6099,11 @@
       let done = false;
       const finish = (result) => { if (!done) { done = true; resolve(result); } };
 
+      // A reloaded extension leaves this script running with chrome.runtime gone.
+      if (!chrome.runtime || !chrome.runtime.id) {
+        finish({ error: 'Extension context invalidated. Reload this page.' });
+        return;
+      }
       try {
         chrome.runtime.sendMessage(message, (value) => {
           const lastError = chrome.runtime.lastError;
@@ -6113,7 +6118,8 @@
           finish({ error: lastError.message || 'messaging failed' });
         });
       } catch (error) {
-        finish({ error: (error && error.message) || 'messaging threw' });
+        const text = (error && error.message) || 'messaging threw';
+        finish({ error: /context invalidated/i.test(text) ? text + ' Reload this page.' : text });
       }
 
       // A worker that never answers must not leave the caller hanging forever.

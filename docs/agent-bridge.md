@@ -180,7 +180,8 @@ document.documentElement.getAttribute('data-domheist-result')
   finished* above.
 - Errors: `a capture is already running` (one at a time), `target not found`,
   `no element matches: …` (with `missing`), `invalid selector: …`, `unknown format: …`,
-  `downloads did not complete: …`, timeouts.
+  `downloads did not complete: …`, timeouts. If DOM Heist was reloaded after the page
+  opened, requests fail with `Extension context invalidated. Reload this page.`; reload it.
 - A selection you were making in the picker is set aside during an agent capture and put
   back afterwards; an agent capture only ever saves what it selected. Wait for each
   result before sending the next request: the attribute holds only the latest answer.
