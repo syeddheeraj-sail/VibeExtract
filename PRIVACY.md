@@ -41,6 +41,10 @@ to your downloads folder, sizes, and a short description of what was captured â€
 file contents or your folder's full path. Local development hosts are allowed by default;
 every other site only after you switch it on.
 
+To capture a hover menu or hover colour, an agent can ask the extension to move the mouse
+pointer to a point on an allowed page. The extension does this through Chrome's debugger
+interface, for that one move only, and never clicks or types.
+
 ## Network requests
 
 The extension makes exactly one kind of outbound request: downloading the **font files**

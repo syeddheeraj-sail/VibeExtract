@@ -134,6 +134,7 @@ the paths relative to Downloads, and closes.
 | `selectors: [...]` | Several elements in one capture, exactly like Shift+Click (each as-is unless `exact:false`). One that matches nothing fails the request and is named in `missing`. |
 | `combine: 'ancestor'` | With `selectors`: capture their nearest common ancestor instead. |
 | `point`, `hovered`, `fullPage` | The element at a point, under the real pointer (keeps a hover menu open), or the whole page. |
+| `hover`, `hoverMs` | Before capturing, move the real pointer to `hover` (a selector, scrolled into view and aimed at its centre, or viewport `{x, y}`) and wait `hoverMs` (default 500) for a hover menu, tooltip or hover colour to appear. Then capture it with `hovered: true` or its own `selector`. Combine with `preview` to look without saving; `hover` on an empty spot moves the pointer away. |
 | `preview: true` | Resolve and highlight the target for `previewMs` (default 4000) and report what is inside it — box, hidden / off-screen, headings, controls with labels, text — without capturing or saving. The agent's version of seeing the hover box before clicking. |
 | `expect: { text: [...] }` | Text the capture must contain. `missing` lists what the capture did *not* keep, checked against the captured tree, so hidden text counts as missing. |
 
@@ -722,6 +723,7 @@ the `.html` export when you need the pixels.
 | `storage` | Persist your custom shortcuts (`storage.sync`), stage the export payload for the export tab (`storage.session`), and keep the agent bridge's allowed sites (`storage.local`). |
 | `downloads` | Save `preview.html`, `component.toon` and `preview-fonts.zip`, and read back the absolute path so it can be copied to your clipboard. Agent bridge captures go to `Downloads/domheist/<site>/`. |
 | `clipboardWrite` | Copy the saved file's path, and the HTML/TOON source from the copy button. |
+| `debugger` | Move the real pointer for an agent capture's `hover`. Only Chrome's own input sets `:hover` and fires the mouse events hover menus listen for, so a page script cannot do it. The debugger is attached to that tab for one mouse move, on an allowed site, and detached straight away; Chrome may briefly show its "started debugging this browser" bar. |
 | `<all_urls>` (host) | Capture works on any site you point it at, and lets the service worker fetch `@font-face` binaries from whatever host serves them. |
 
 No remote code execution, no analytics, and no network requests other than fetching font

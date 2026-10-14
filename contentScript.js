@@ -968,6 +968,7 @@
   const AGENT_KEY = '__domheistAgent';
   const AGENT_PREVIEW_MS = 4000;
   const AGENT_LIST_LIMIT = 30;
+  const AGENT_HOVER_MS = 500;
   let agentBusy = false;
   let agentLastFingerprint = null;
   let agentPreviewTimer = null;
@@ -1007,6 +1008,27 @@
       return chain.length ? chain[chain.length - 1] : null;
     }
     return null;
+  }
+
+  /**
+   * `hover`: where the real pointer goes before capturing, as a selector (its
+   * centre, scrolled into view first) or viewport {x, y}.
+   */
+  function agentHoverPoint(hover) {
+    if (hover && typeof hover === 'object' && isFinite(hover.x) && isFinite(hover.y)) {
+      return { x: Number(hover.x), y: Number(hover.y) };
+    }
+    if (typeof hover !== 'string' || !hover) return { error: 'hover must be a selector or {x, y}' };
+    const hit = querySafely(hover);
+    if (hit.invalid) return { error: 'invalid selector: ' + hover };
+    if (!hit.el) return { error: 'no element matches: ' + hover, missing: [hover] };
+    let rect = hit.el.getBoundingClientRect();
+    if (rect.bottom < 0 || rect.top > innerHeight || rect.right < 0 || rect.left > innerWidth) {
+      hit.el.scrollIntoView({ block: 'center', inline: 'center' });
+      rect = hit.el.getBoundingClientRect();
+    }
+    if (!rect.width && !rect.height) return { error: 'hover target is not shown: ' + hover };
+    return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
   }
 
   function querySafely(selector) {
@@ -1232,6 +1254,22 @@
     const userSelections = state.selections;
     let activated = false;
     try {
+      if (req.hover != null) {
+        const point = agentHoverPoint(req.hover);
+        if (point.error) {
+          report(Object.assign({ status: 'error', reason: point.error }, point.missing ? { missing: point.missing } : {}));
+          return;
+        }
+        const moved = await sendToWorker({ type: 'DOMHEIST_AGENT_HOVER', x: point.x, y: point.y });
+        const value = moved.value || {};
+        if (moved.error || !value.ok) {
+          report({ status: 'error', reason: moved.error || value.reason || 'could not move the pointer' });
+          return;
+        }
+        // Long enough for a hover menu or tooltip to open.
+        const wait = Math.min(10000, Math.max(0, Number(req.hoverMs) >= 0 ? Number(req.hoverMs) : AGENT_HOVER_MS));
+        await new Promise((resolve) => setTimeout(resolve, wait));
+      }
 
       const resolved = resolveAgentTargets(req);
       if (resolved.error) {

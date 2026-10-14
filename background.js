@@ -115,6 +115,29 @@ function agentName(raw) {
   return cleaned || 'capture-' + Date.now().toString(36);
 }
 
+/**
+ * Moves the real pointer for an agent capture's `hover`. Only Chrome's own input
+ * pipeline sets :hover and fires trusted mouse events, so a page cannot fake it;
+ * the debugger is attached for this one event and detached straight away.
+ */
+async function agentHover(tabId, x, y) {
+  if (!isFinite(x) || !isFinite(y)) return { ok: false, reason: 'hover point is not a number' };
+  const target = { tabId };
+  try {
+    await chrome.debugger.attach(target, '1.3');
+  } catch (error) {
+    return { ok: false, reason: 'could not move the pointer: ' + describeError(error) };
+  }
+  try {
+    await chrome.debugger.sendCommand(target, 'Input.dispatchMouseEvent', { type: 'mouseMoved', x, y });
+    return { ok: true, x, y };
+  } catch (error) {
+    return { ok: false, reason: 'could not move the pointer: ' + describeError(error) };
+  } finally {
+    await chrome.debugger.detach(target).catch(() => {});
+  }
+}
+
 function waitForAgent(id) {
   return new Promise((resolve) => {
     // The waiter lives only in this worker's memory, and Chrome stops an idle worker
@@ -841,6 +864,18 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return true;
       }
       guard(setAgentOrigin(message.origin, !!message.allow), 'agent allowlist').then(sendResponse);
+      return true;
+    }
+
+    case 'DOMHEIST_AGENT_HOVER': {
+      const tabId = sender.tab && sender.tab.id;
+      if (!tabId || sender.frameId !== 0) { sendResponse({ ok: false, reason: 'hover is top-frame only' }); return true; }
+      guard(
+        agentAllowed(senderOrigin(sender)).then((gate) => (gate.ok
+          ? agentHover(tabId, Number(message.x), Number(message.y))
+          : gate)),
+        'agent hover'
+      ).then(sendResponse);
       return true;
     }
 

@@ -72,12 +72,13 @@ sequenceDiagram
 3. **Gate.** The content script asks the service worker whether this origin is allowed.
    Content script ↔ worker traffic uses `chrome.runtime` messaging, which the page cannot
    see or forge. The worker checks again on export, using the tab URL Chrome reports.
-4. **Resolve and capture.** The target is found (`selector`, `selectors`, `point`,
-   `hovered`, `fullPage`) and, unless `exact`, expanded like a click. The subtree is walked
-   through the normal pipeline: computed styles, hover rules, pseudo-elements, form state,
-   fonts, frames and pixel recovery. A `preview` request stops here and writes
-   `status: "preview"` without saving. A capture computes `fingerprint`, `sameAsLast` and
-   `missing` from what it captured.
+4. **Resolve and capture.** With `hover`, the worker first moves the real pointer there
+   through Chrome's debugger and waits `hoverMs`. The target is found (`selector`,
+   `selectors`, `point`, `hovered`, `fullPage`) and, unless `exact`, expanded like a click.
+   The subtree is walked through the normal pipeline: computed styles, hover rules,
+   pseudo-elements, form state, fonts, frames and pixel recovery. A `preview` request stops
+   here and writes `status: "preview"` without saving. A capture computes `fingerprint`,
+   `sameAsLast` and `missing` from what it captured.
 5. **Collect.** The worker asks every frame in the tab for its payload. The frame holding
    the selection packs it (shared classes, layout wrappers, dropdown wiring, fonts). The
    worker merges frames and fetches font binaries.
@@ -158,6 +159,31 @@ would be captured. Nothing is saved.
 Several elements: `selectors: ['#a', '#b']` takes them together, like Shift+Click.
 `combine: 'ancestor'` takes their nearest common parent instead. Each target is outlined
 and numbered.
+
+### Hover states
+
+`hovered: true` takes the element under the real mouse, which a browser tool's "hover"
+does not move (it draws a cursor; the page's `:hover` stays empty). To capture something
+that only appears on hover, let DOM Heist move the pointer first:
+
+```js
+// hover the trigger, wait for the menu / tooltip, capture what appeared
+window.postMessage({ __domheistAgent: 'capture', id: 'h1', name: 'account-menu',
+  hover: '[data-domheist-target="1"]', hoverMs: 800,
+  selector: '.menu-popover', exact: true, expect: { text: ['Sign out'] } }, '*');
+// a hover colour: hover the button and capture the button itself
+window.postMessage({ __domheistAgent: 'capture', id: 'h2', name: 'cta-hover',
+  hover: '#cta', selector: '#cta', exact: true }, '*');
+// move the pointer away (closes the menu) before the next capture
+window.postMessage({ __domheistAgent: 'capture', id: 'h3', preview: true,
+  hover: { x: 5, y: innerHeight - 5 }, fullPage: true }, '*');
+```
+
+`hover` takes a selector (scrolled into view, pointer at its centre) or viewport `{x, y}`.
+The worker attaches Chrome's debugger for one mouse move and detaches; the page gets real,
+trusted `mouseover` / `mousemove` events. Give a page that is still loading or animating a
+moment first: its own re-layout can drop a hover made too early. Errors: `could not move the
+pointer: …`, `hover target is not shown: …`, plus the selector errors below.
 
 ## 4. Capture and check
 
