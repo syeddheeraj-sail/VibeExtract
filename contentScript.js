@@ -2712,6 +2712,14 @@
 
     const own = entry.own || Object.create(null);
     const viaAncestor = [];
+    // Hover values come from the stylesheet as written, so they can still hold
+    // var(). The export carries no custom properties: resolve them from the
+    // element, as captured resting styles are, or drop the declaration.
+    const settle = (prop, value) => {
+      if (value.indexOf('var(--') === -1) return value;
+      const resolved = resolveCustomProperties(cs, value);
+      return resolved.indexOf('var(--') === -1 ? cleanValue(prop, resolved) || null : null;
+    };
 
     for (const rule of entry.ancestorRules) {
 
@@ -2733,7 +2741,8 @@
       const props = Object.create(null);
       for (const prop of Object.keys(rule.props)) {
         const cleaned = cleanValue(prop, rule.props[prop]);
-        if (cleaned) props[prop] = cleaned;
+        const value = cleaned && settle(prop, cleaned);
+        if (value) props[prop] = value;
       }
       if (Object.keys(props).length) viaAncestor.push({ up, props });
     }
@@ -2742,7 +2751,8 @@
     const diff = Object.create(null);
     for (const prop of Object.keys(own)) {
       const resting = cleanValue(prop, cs.getPropertyValue(prop));
-      if (own[prop] !== resting) diff[prop] = own[prop];
+      const value = settle(prop, own[prop]);
+      if (value && value !== resting) diff[prop] = value;
     }
 
     const hasOwn = Object.keys(diff).length > 0;
